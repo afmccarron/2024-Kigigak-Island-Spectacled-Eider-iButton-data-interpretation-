@@ -1,0 +1,17 @@
+name: "2024_kig_spei_iButton_data"
+output_dir: ../docs
+navbar:
+  title: "2024_kig_spei_iButton_data"
+  left:
+  - text: Home
+    href: index.html
+  - text: About
+    href: about.html
+  - text: License
+    href: license.html
+output:
+  workflowr::wflow_html:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    highlight: textmate
