@@ -11,14 +11,20 @@ sapply(package_vec, install.load.package)
 ###################
 
 # Load Access database from 2024
-channel <- odbcConnectAccess2007("data/database/db_kig_nesting_waterfowl_2024_20241019_proofed.accdb")
+channel <- odbcConnectAccess2007("data/database/db_kig_nesting_waterfowl_2024_20250428.accdb")
 deployment_info <- sqlFetch(channel, "tbl_iButton")
+pred_hatch <- sqlFetch(channel, "qry_estHatch")
 odbcClose(channel)
 
 # Create identifier to match iButton file names
 deployment_info <- deployment_info %>%
   mutate(file_id = paste0("24", id_nest, "_", id_iButton),
          dt_deployed = as.POSIXct(dt_deployed, tz = "UTC"))
+# merge tables and tbl_iButton in order to match predicted hatch date
+pred_hatch <- pred_hatch %>%
+  left_join(deployment_info %>% select(id_nest, id_iButton), by = "id_nest") %>%
+  mutate(file_id = paste0("24", id_nest, "_", id_iButton))
+
 
 # List iButton csv files
 iButton_csv_files <- list.files(path = "data", pattern = "\\.csv$", full.names = TRUE)
@@ -43,6 +49,11 @@ for (i in seq_along(iButton_csv_files)) {
     filter(file_id == !!file_id) %>%
     pull(dt_deployed)
 
+  # Match predicted hatch date
+  hatch_time <- pred_hatch %>%
+    filter(file_id == !!file_id) %>%
+    pull(estHatch)
+
   # Create plot
   p <- plot_ly(data = df, x = ~`Date/Time`, y = ~Value,
                type = 'scatter', mode = 'lines+markers' , marker = list(size = 4),
@@ -61,6 +72,18 @@ for (i in seq_along(iButton_csv_files)) {
                 line = list(color = 'red', dash = 'dot'),
                 inherit = FALSE,
                 showlegend = FALSE)
+
+  }
+
+  # If estimated hatch date exists, add a vertical line
+  if (length(hatch_time) == 1 && !is.na(hatch_time)) {
+    p <- p %>%
+      add_lines(x = c(hatch_time, hatch_time),
+                y = c(min(df$Value, na.rm = TRUE), max(df$Value, na.rm = TRUE)),
+                line = list(color = 'green', dash = 'dot'),
+                inherit = FALSE,
+                showlegend = FALSE)
+
   }
 
   # Store plot
